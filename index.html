@@ -3,10 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <title>Lab 6</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/9.9.0/css/bootstrap-slider.min.css">
     <link rel="stylesheet" href="./style.css">
 </head>
+
 <body>
+    <svg id="bar-graph"></svg>
+    <div id="slider">
+        <!-- data covers 1975 to 2020 -->
+        <label for="yearSlider">1975</label>
+        <input id="yearSlider" type="text"
+            data-slider-min="1975" data-slider-max="2020"
+            data-slider-step="1" data-slider-value="1975"/>
+        <label for="yearSlider">2020</label>
+    </div>
 </body>
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/9.9.0/bootstrap-slider.min.js"></script>
 <script src="https://d3js.org/d3.v5.min.js"></script>
 <script src="./main.js"></script>
 </html>
