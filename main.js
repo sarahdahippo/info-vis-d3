@@ -6,6 +6,8 @@ const margin = {top: 30, right: 30, bottom: 80, left: 100};
 const graph_width = svg_width - legend_width - margin.left - margin.right,
     graph_height = svg_height - margin.top - margin.bottom;
 const legendSquare = 20;
+const types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
+const types_per_100k = ["car_occupants_per_100k", "pedestrians_per_100k", "motorcyclists_per_100k", "bicyclists_per_100k", "truck_occupants_per_100k"];
 
 // set up svg
 var main = d3.select("#main").append("svg")
@@ -28,6 +30,9 @@ svg.append("text")
 var idleTimeout;
 function idled() { idleTimeout = null; }
 
+// tooltip
+var tooltip = d3.tip().attr("id", "tooltip");
+
 // get the data
 d3.dsv(",", "transportation_fatalities.csv", function (d) {
     return {
@@ -47,12 +52,22 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         total_per_100k: +d.Total_Per_100K
     };
 }).then(function (data) {
+    /** groups & reformat data **/
+    var stacked_data = d3.stack()
+        .keys(types)
+        (data);
+    
+    /** colors **/
+    var color = d3.scaleOrdinal()
+        .domain(types)
+        .range(['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9'])
+
     /** axes **/
     var xScale = d3.scaleTime()
         .domain(d3.extent(data, function(d) { return d.year; }))
         .range([0, graph_width]);
     var yScale = d3.scaleLinear()
-        .domain([0,d3.max(data, function(d) { return d.total; })])
+        .domain([0, d3.max(data, function(d) { return d.total; })])
         .range([graph_height, 0]);
 
     // x-axis
@@ -73,19 +88,6 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .attr("class", "axis-label")
         .attr("transform", "translate(-80,200) rotate(90)")
         .text("Total Fatalities");
-
-    /** groups & reformat data **/
-    var types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
-    var types_per_100k = ["car_occupants_per_100k", "pedestrians_per_100k", "motorcyclists_per_100k", "bicyclists_per_100k", "truck_occupants_per_100k"];
-
-    var stacked_data = d3.stack()
-        .keys(types)
-        (data)
-
-    /** colors **/
-    var color = d3.scaleOrdinal()
-        .domain(types)
-        .range(['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9'])
     
     // ensure brushing is only within this clipPath
     svg.append("defs").append("svg:clipPath")
@@ -97,24 +99,53 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .attr("y", 0);
     var brushableSvg = svg.append('g').attr("clip-path", "url(#clip)");
 
+    // invisible target to let tooltip follow cursor
+    brushableSvg.append('circle').attr('id', 'tooltipMouseTarget');
+
     /** data **/
+    var areaGenerator = d3.area()
+        .x(function(d) { return xScale(d.data.year); })
+        .y0(function(d) { return yScale(d[0]); })
+        .y1(function(d) { return yScale(d[1]); });
     brushableSvg.selectAll(".layers")
         .data(stacked_data)
         .enter()
         .append("path")
         .attr("class", function(d) { return "layer " + d.key; })
         .attr("fill", function(d) { return color(d.key); })
-        .attr("d", d3.area()
-            .x(function(d) { return xScale(d.data.year); })
-            .y0(function(d) { return yScale(d[0]); })
-            .y1(function(d) { return yScale(d[1]); })
-        );
+        .attr("d", areaGenerator)
+
+        // on hover, show tooltip
+        .on("mouseover", function(d) {
+            // var fatalityType = `<p>Fatality Type: ${d.key}</p>`;
+            // var fatalities = `<p>Fatalities: ${d.value}</p>`;
+            // var fatalitiesPer100K = '-1';//`<p>Fatalities per 100K: ${d.data}</p>`;
+            // var year = `<p>Year: ${d.index}</p>`;
+            // var population = `<p>Population: ${d.data.population}</p>`;
+        
+            // tooltip.html(
+            //     fatalityType + fatalities + fatalitiesPer100K + year + population
+            // ).style("top", d3.event.pageY + "px")
+            // .style("left", d3.event.pageX + "px");
+            tooltip.html(d.key)
+            // lets tooltip follow cursor
+            var target = d3.select('#tooltipMouseTarget')
+              .attr('cx', d3.event.offsetX)
+              .attr('cy', d3.event.offsetY - 5)
+              .node();
+              
+            brushableSvg.call(tooltip);
+            tooltip.show(d, target);
+        })
+
+        // on mouseout, the tooltip should disappear
+        .on("mouseout", tooltip.hide);
 
     // horizontal brushing
     var brush = d3.brushX()
         .extent( [ [0,0], [graph_width, graph_height] ] )
         .on("end", updateChart);
-    brushableSvg.append("g").attr("class", "brush").call(brush);
+    // brushableSvg.append("g").attr("class", "brush").call(brush);
 
     /** legend */
     legend.selectAll(".legend-rect")
@@ -157,11 +188,7 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         xAxis.transition().duration(1000).call(d3.axisBottom(xScale));
         brushableSvg.selectAll("path")
             .transition().duration(1000)
-            .attr("d", d3.area()
-                .x(function(d) { return xScale(d.data.year); })
-                .y0(function(d) { return yScale(d[0]); })
-                .y1(function(d) { return yScale(d[1]); })
-            );
+            .attr("d", areaGenerator);
     }
 })
 
