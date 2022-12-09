@@ -36,12 +36,12 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
     console.log(data);
 
     /** axes **/
-    var xScale = d3.scaleTime()
-        .domain(d3.extent(data, function(d) { return d.year }))
+    var xScale = d3.scaleBand()
+        .domain(["Total", "Car Occupants", "Pedestrians", "Motorcyclists", "Bicyclists", "Truck Occupants"])
         .range([0, graph_width]);
     var yScale = d3.scaleLinear()
-        .domain([d3.min(data, function(d) { return d.total - 2000 }),d3.max(data, function(d) { return d.total + 2000 })])
-        //.domain([0,d3.max(data, function(d) { return d.total + 5000 })])
+        //.domain([d3.min(data, function(d) { return d.total - 2000 }),d3.max(data, function(d) { return d.total + 2000 })])
+        .domain([0,d3.max(data, function(d) { return d.total + 5000 })])
         .range([graph_height, 0]);
 
     svg.append("g")
@@ -51,7 +51,7 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
     svg.append("text")
         .attr("class", "axis-label")
         .attr("transform", "translate(350," +  (graph_height + 60) +")")
-        .text("Year");
+        .text("Type");
 
     svg.append("g")
         .attr("id", "y-axis")
@@ -61,14 +61,10 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .attr("transform", "translate(-80,200) rotate(90)")
         .text("Total Fatalities");
 
+    // get input (hardcoded for now)
+    var input_year = d3.timeParse("%Y")(1975);
+    console.log(input_year);
+
     /** data **/
-    svg.append("path")
-        .datum(data)
-        .attr("fill", "none")
-        .attr("stroke", "steelblue")
-        .attr("stroke-width", 2.0)
-        .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.total) })
-        )
+
 })
