@@ -1,16 +1,21 @@
-// dimensions
-const svg_width = 800,
+// constants
+const svg_width = 1000,
     svg_height = 600;
+const legend_width = 200;
 const margin = {top: 30, right: 30, bottom: 80, left: 100};
-const graph_width = svg_width - margin.left - margin.right,
+const graph_width = svg_width - legend_width - margin.left - margin.right,
     graph_height = svg_height - margin.top - margin.bottom;
+const legendSquare = 20;
 
 // set up svg
-var svg = d3.select("#main").append("svg")
+var main = d3.select("#main").append("svg")
     .attr("width", svg_width)
-    .attr("height", svg_height)
-    .append("g").attr("id", "graph")
+    .attr("height", svg_height);
+var svg = main.append("g").attr("id", "graph")
     .attr("transform", `translate(${margin.left}, ${margin.top})`);
+var legend = main.append("g").attr("id", "legend")
+    .attr("width", legend_width)
+    .attr("transform", `translate(${margin.left + legendSquare}, ${svg_height / 2})`);
 
 // make the chart title
 svg.append("text")
@@ -97,7 +102,7 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .data(stacked_data)
         .enter()
         .append("path")
-        .attr("class", "layers")
+        .attr("class", function(d) { return "layer " + d.key; })
         .attr("fill", function(d) { return color(d.key); })
         .attr("d", d3.area()
             .x(function(d) { return xScale(d.data.year); })
@@ -110,11 +115,36 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .extent( [ [0,0], [graph_width, graph_height] ] )
         .on("end", updateChart);
     brushableSvg.append("g").attr("class", "brush").call(brush);
+
+    /** legend */
+    legend.selectAll(".legend-rect")
+        .data(types)
+        .enter()
+        .append("rect").attr("class", "legend-rect")
+        .attr("x", graph_width)
+        .attr("y", function(_, i) { return i * (legendSquare + 5); })
+        .attr("width", legendSquare)
+        .attr("height", legendSquare)
+        .style("fill", function(d) { return color(d); })
+        .on("mouseover", legendMouseover)
+        .on("mouseleave", legendMouseleave);
+    legend.selectAll(".legend-label")
+        .data(types)
+        .enter()
+        .append("text").attr("class", "legend-label")
+        .attr("x", graph_width + legendSquare + 10)
+        .attr("y", function(_, i) { return 10 + i * (legendSquare + 7); })
+        .style("fill", function(d) { return color(d); })
+        .text(function(d) { return d; })
+        .attr("text-anchor", "start")
+        .on("mouseover", legendMouseover)
+        .on("mouseleave", legendMouseleave);
     
     function updateChart() {
         var selected = d3.event.selection;
         if (!selected) {
-            // invalid/no selection; wait a bit then scale to normal
+            // invalid/no selection; waits a bit then scale to original
+            // (double-clicking will return graph to original scale)
             if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
             xScale.domain(d3.extent(data, function(d) { return d.year; }))
         } else {
@@ -137,11 +167,11 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
 
 // makes the non-hovered groups less opaque
 function legendMouseover(d) {
-    d3.selectAll(".myArea").style("opacity", 0.1);
+    d3.selectAll(".layer").style("opacity", 0.1);
     d3.select("."+d).style("opacity", 1);
 }
 
 // restore opacity of all groups
 function legendMouseleave(d) {
-    d3.selectAll(".myArea").style("opacity", 1);
+    d3.selectAll(".layer").style("opacity", 1);
 }
