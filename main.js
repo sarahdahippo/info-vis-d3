@@ -3,7 +3,7 @@
 // dimensions
 var svg_width = 800,
     svg_height = 600;
-var margin = {top: 10, right: 30, bottom: 80, left: 100};
+var margin = {top: 30, right: 30, bottom: 80, left: 100};
 var graph_width = svg_width - margin.left - margin.right,
     graph_height = svg_height - margin.top - margin.bottom;
 
@@ -41,7 +41,7 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .range([0, graph_width]);
     var yScale = d3.scaleLinear()
         //.domain([d3.min(data, function(d) { return d.total - 2000 }),d3.max(data, function(d) { return d.total + 2000 })])
-        .domain([0,d3.max(data, function(d) { return d.total + 5000 })])
+        .domain([0,d3.max(data, function(d) { return d.total })])
         .range([graph_height, 0]);
 
     svg.append("g")
@@ -61,70 +61,33 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .attr("transform", "translate(-80,200) rotate(90)")
         .text("Total Fatalities");
 
+
+    /** groups & reformat data **/
+    var types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
+    var types_per_100k = ["car_occupants_per_100k", "pedestrians_per_100k", "motorcyclists_per_100k", "bicyclists_per_100k", "truck_occupants_per_100k"];
+
+    var stacked_data = d3.stack()
+        .keys(types)
+        (data)
+
+    console.log(stacked_data);
+
+    /** colors **/
+    var color = d3.scaleOrdinal()
+        .domain(types)
+        .range(['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9'])
+
     /** data **/
-    svg.append("path")
-        .datum(data)
-        .attr("class", "line")
-        .attr("fill", "none")
-        .attr("stroke", "steelblue")
-        .attr("stroke-width", 2.0)
-        .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.total) })
+    svg.selectAll(".layers")
+        .data(stacked_data)
+        .enter()
+        .append("path")
+        .attr("class", "layers")
+        .attr("fill", function(d) { return color(d.key); })
+        .attr("d", d3.area()
+            .x(function(d) { return xScale(d.data.year)})
+            .y0(function(d) { return yScale(d[0])})
+            .y1(function(d) { return yScale(d[1])})
         )
 
-    svg.append("path")
-        .datum(data)
-        .attr("class", "line")
-        .attr("fill", "none")
-        .attr("stroke", "red")
-        .attr("stroke-width", 2.0)
-        .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.car_occupants) })
-        )
-
-    svg.append("path")
-        .datum(data)
-        .attr("class", "line")
-        .attr("fill", "none")
-        .attr("stroke", "yellow")
-        .attr("stroke-width", 2.0)
-        .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.pedestrians) })
-        )
-
-    svg.append("path")
-        .datum(data)
-        .attr("class", "line")
-        .attr("fill", "none")
-        .attr("stroke", "green")
-        .attr("stroke-width", 2.0)
-        .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.motorcyclists) })
-        )
-
-    svg.append("path")
-        .datum(data)
-        .attr("class", "line")
-        .attr("fill", "none")
-        .attr("stroke", "orange")
-        .attr("stroke-width", 2.0)
-        .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.bicyclists) })
-        )
-
-    svg.append("path")
-        .datum(data)
-        .attr("class", "line")
-        .attr("fill", "none")
-        .attr("stroke", "purple")
-        .attr("stroke-width", 2.0)
-        .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.truck_occupants) })
-        )
 })
