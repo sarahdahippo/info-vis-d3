@@ -31,7 +31,7 @@ var idleTimeout;
 function idled() { idleTimeout = null; }
 
 // tooltip
-var tooltip = d3.tip().attr("id", "tooltip");
+// var tooltip = d3.tip().attr("id", "tooltip");
 
 // get the data
 d3.dsv(",", "transportation_fatalities.csv", function (d) {
@@ -100,52 +100,73 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
     var brushableSvg = svg.append('g').attr("clip-path", "url(#clip)");
 
     // invisible target to let tooltip follow cursor
-    brushableSvg.append('circle').attr('id', 'tooltipMouseTarget');
+    // brushableSvg.append('circle').attr('id', 'tooltipMouseTarget');
 
     /** data **/
-    var areaGenerator = d3.area()
-        .x(function(d) { return xScale(d.data.year); })
-        .y0(function(d) { return yScale(d[0]); })
-        .y1(function(d) { return yScale(d[1]); });
     brushableSvg.selectAll(".layers")
         .data(stacked_data)
         .enter()
         .append("path")
         .attr("class", function(d) { return "layer " + d.key; })
         .attr("fill", function(d) { return color(d.key); })
-        .attr("d", areaGenerator)
+        .attr("d", d3.area()
+            .x(function(d) { return xScale(d.data.year); })
+            .y0(function(d) { return yScale(d[0]); })
+            .y1(function(d) { return yScale(d[1]); })
+        );
 
         // on hover, show tooltip
-        .on("mouseover", function(d) {
-            // var fatalityType = `<p>Fatality Type: ${d.key}</p>`;
-            // var fatalities = `<p>Fatalities: ${d.value}</p>`;
-            // var fatalitiesPer100K = '-1';//`<p>Fatalities per 100K: ${d.data}</p>`;
-            // var year = `<p>Year: ${d.index}</p>`;
-            // var population = `<p>Population: ${d.data.population}</p>`;
+        // .on("mouseover", function(d) {
+        //     // var fatalityType = `<p>Fatality Type: ${d.key}</p>`;
+        //     // var fatalities = `<p>Fatalities: ${d.value}</p>`;
+        //     // var fatalitiesPer100K = '-1';//`<p>Fatalities per 100K: ${d.data}</p>`;
+        //     // var year = `<p>Year: ${d.index}</p>`;
+        //     // var population = `<p>Population: ${d.data.population}</p>`;
         
-            // tooltip.html(
-            //     fatalityType + fatalities + fatalitiesPer100K + year + population
-            // ).style("top", d3.event.pageY + "px")
-            // .style("left", d3.event.pageX + "px");
-            tooltip.html(d.key)
-            // lets tooltip follow cursor
-            var target = d3.select('#tooltipMouseTarget')
-              .attr('cx', d3.event.offsetX)
-              .attr('cy', d3.event.offsetY - 5)
-              .node();
+        //     // tooltip.html(
+        //     //     fatalityType + fatalities + fatalitiesPer100K + year + population
+        //     // ).style("top", d3.event.pageY + "px")
+        //     // .style("left", d3.event.pageX + "px");
+        //     // console.log(d)
+        //     tooltip.html(d.key)
+        //     // lets tooltip follow cursor
+        //     var target = d3.select('#tooltipMouseTarget')
+        //       .attr('cx', d3.event.offsetX)
+        //       .attr('cy', d3.event.offsetY - 5)
+        //       .node();
               
-            brushableSvg.call(tooltip);
-            tooltip.show(d, target);
-        })
+        //     brushableSvg.call(tooltip);
+        //     tooltip.show(d, target);
+        // })
 
-        // on mouseout, the tooltip should disappear
-        .on("mouseout", tooltip.hide);
+        // // on mouseout, the tooltip should disappear
+        // .on("mouseout", tooltip.hide);
+
+    // brushableSvg.append("path")
+    //     .datum(data)
+    //     .attr("class", "population")
+    //     .attr("fill", "none")
+    //     .attr("stroke", "red")
+    //     .attr("d", d3.line()
+    //         .x(function(d) { return xScale(d.year) })
+    //         .y(function(d) { return yScale(d.population) })
+    //     )
+
+    // brushableSvg.append("path")
+    //     .datum(data)
+    //     .attr("class", "total-fatalities")
+    //     .attr("fill", "none")
+    //     .attr("stroke", "blue")
+    //     .attr("d", d3.line()
+    //         .x(function(d) { return xScale(d.year) })
+    //         .y(function(d) { return yScale(d.total) })
+    //     )
 
     // horizontal brushing
     var brush = d3.brushX()
         .extent( [ [0,0], [graph_width, graph_height] ] )
         .on("end", updateChart);
-    // brushableSvg.append("g").attr("class", "brush").call(brush);
+    brushableSvg.append("g").attr("class", "brush").call(brush);
 
     /** legend */
     legend.selectAll(".legend-rect")
@@ -188,7 +209,11 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         xAxis.transition().duration(1000).call(d3.axisBottom(xScale));
         brushableSvg.selectAll("path")
             .transition().duration(1000)
-            .attr("d", areaGenerator);
+            .attr("d", d3.area()
+                .x(function(d) { return xScale(d.data.year); })
+                .y0(function(d) { return yScale(d[0]); })
+                .y1(function(d) { return yScale(d[1]); })
+            );
     }
 })
 
