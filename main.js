@@ -20,42 +20,28 @@ var margin = {top: 30, right: 30, bottom: 80, left: 100};
 var graph_width = svg_width - margin.left - margin.right,
     graph_height = svg_height - margin.top - margin.bottom;
 
-// set up svg
+/*********************************************************/
+/** set up **/
+
+// svg & chart
 var svg = d3.select("#chart").append("svg")
     .attr("width", svg_width)
     .attr("height", svg_height)
-    .append("g").attr("id", "graph")
+var graph = svg.append("g").attr("id", "graph")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+var plot = graph.append("g").attr("id", "plot")
 
-// front-end views/filters
-var view = d3.select("#view")
-
-view.append("input")
-    .attr("class", "radio-buttons")
-    .attr("id", "area")
-    .attr("type", "radio")
-    .attr("name", "view")
-    .attr("value", "Area")
-    .attr("checked", "true")
+// views
+var area_view = d3.select("#view").select("#area")
     .on("click", function() {
-        area_selected = true;
         updateChart("Area");
         return;
-    })
-view.append("label").attr("for", "area").text("Area")
-
-view.append("input")
-    .attr("class", "radio-buttons")
-    .attr("id", "line")
-    .attr("type", "radio")
-    .attr("name", "view")
-    .attr("value", "Line")
+    });
+var line_view = d3.select("#view").select("#line")
     .on("click", function() {
-        area_selected = false;
         updateChart("Line");
         return;
-    })
-view.append("label").attr("for", "line").text("Line")
+    });
 
 // toggle show total checkbox
 var show = d3.select("#show").select("#total-checkbox")
@@ -66,11 +52,11 @@ var show = d3.select("#show").select("#total-checkbox")
         return;
     })
 
+// filter
 var filter = d3.select("#filter.checkbox")
 // on change of any element in name group, call update chart
 
-
-
+/*********************************************************/
 /** axes **/
 function initAxes() {
     xScale = d3.scaleTime()
@@ -78,30 +64,34 @@ function initAxes() {
         .range([0, graph_width]);
     yScale = d3.scaleLinear()
         .domain([0,d3.max(dataset, function(d) {
-            return area_selected ? d.total : d.total_per_100k
+            return d.total
         })])
         .range([graph_height, 0]);
 
-    svg.append("g")
+    graph.append("g")
         .attr("id", "x-axis")
         .attr("transform", "translate(0," + graph_height + ")")
         .call(d3.axisBottom(xScale));
-    svg.append("text")
+    graph.append("text")
         .attr("class", "axis-label")
         .attr("transform", "translate(350," +  (graph_height + 60) +")")
         .text("Year");
 
-    svg.append("g")
+    graph.append("g")
         .attr("id", "y-axis")
         .call(d3.axisLeft(yScale));
-    svg.append("text")
+    graph.append("text")
         .attr("class", "axis-label")
         .attr("transform", "translate(-80,200) rotate(90)")
         .text("Total Fatalities");
 }
 
+/*********************************************************/
 /** update chart **/
 function updateChart(chart_view) {
+    // clear plot
+    d3.select("#plot").remove();
+
     // get selected types from filter
     selected_types = [];
     for (i = 0; i < types.length; i++) {
@@ -110,46 +100,12 @@ function updateChart(chart_view) {
             selected_types.append(types[i]);
         }
     }
+    // colors
+    var color = d3.scaleOrdinal()
+        .domain(selected_types)
+        .range(['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9']);
 
-    // show chart view
-    if (chart_view == "Area") {
-        // groups & reformat data
-        var stacked_data = d3.stack()
-            .keys(selected_types)
-            (dataset)
-
-        console.log(stacked_data);
-
-        // colors
-        var color = d3.scaleOrdinal()
-            .domain(selected_types)
-            .range(['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9'])
-
-        // add data
-        var layers = svg.selectAll(".layers")
-            .data(stacked_data);
-
-        var layers_enter = layers.enter()
-            .append("path")
-            .attr("class", "layers")
-
-        layers_enter.merge(layers)
-            .attr("fill", function(d) { return color(d.key); })
-            .attr("d", d3.area()
-                .x(function(d) { return xScale(d.data.year)})
-                .y0(function(d) { return yScale(d[0])})
-                .y1(function(d) { return yScale(d[1])})
-            )
-
-        layers.exit().remove();
-    } else { // line view
-
-
-    }
-}
-
-
-    // show total line
+    // show total line toggle
     if (show_total) {
         svg.append("path")
           .datum(dataset)
@@ -159,23 +115,62 @@ function updateChart(chart_view) {
           .attr("stroke-width", 2.0)
           .attr("d", d3.line()
             .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(area_selected ? d.total : d.total_per_100k) })
+            .y(function(d) { return yScale(d.total) })
           )
     } else {
         d3.select(".line").remove();
     }
 
+    // show chart view
+    if (chart_view == "Area") {
+        // groups & reformat data
+        var stacked_data = d3.stack()
+            .keys(selected_types)
+            (dataset);
 
-//    // update y axis
-//    yScale = d3.scaleLinear()
-//         .domain([0,d3.max(dataset, function(d) {
-//             return area_selected ? d.total : d.total_per_100k
-//         })])
-//         .range([graph_height, 0]);
-//    d3.select("#y-axis").call(d3.axisLeft(yScale));
-//}
+        console.log(stacked_data);
 
-// get the data
+        // add data
+        var plot = graph.append("g").attr("id", "plot")
+        var layers = plot.selectAll(".layers")
+            .data(stacked_data);
+
+        var layers_enter = layers.enter()
+            .append("path")
+            .attr("class", "layers");
+
+        layers_enter.merge(layers)
+            .attr("fill", function(d) { return color(d.key); })
+            .attr("d", d3.area()
+                .x(function(d) { return xScale(d.data.year)})
+                .y0(function(d) { return yScale(d[0])})
+                .y1(function(d) { return yScale(d[1])})
+            );
+
+        layers.exit().remove();
+    } else if (chart_view == "Line"){ // line view
+        var plot = graph.append("g").attr("id", "plot")
+
+        // plot each line in filtered types
+        for (i = 0; i < selected_types.length; i++) {
+            svg.append("path")
+                .datum(dataset)
+                .attr("class", "line")
+                .attr("id", selected_types[i] + "_line")
+                .attr("fill", "none")
+                .attr("stroke", function(d) { return color(d.key); })
+                .attr("stroke-width", 2.0)
+                .attr("d", d3.line()
+                    .x(function(d) { return xScale(d.year) })
+                    .y(function(d) { return yScale(d[selected_types[i]]) })
+                );
+        }
+
+    }
+}
+
+/*********************************************************/
+/** get the data **/
 d3.dsv(",", "transportation_fatalities.csv", function (d) {
     return {
         year: d3.timeParse("%Y")(d.Year),
