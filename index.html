@@ -7,6 +7,30 @@
 </head>
 <body>
     <div id="main">
+        <div class="column left" id="chart"></div>
+        <div class="column right" id="adjustments">
+            <div id="view">
+                <h3>View</h3>
+            </div>
+            <div id="show">
+                <h3>Show</h3>
+                <input class="checkbox" id="total-checkbox" type="checkbox" value="Total Line">
+                <label for="total-checkbox">Show Total Line</label>
+            </div>
+            <div id="filter">
+                <h3>Filter</h3>
+                <input class="checkbox" id="car" type="checkbox" value="Car Occupants" checked>
+                <label for="car">Car Occupants</label>
+                <input class="checkbox" id="pedestrians" type="checkbox" value="Pedestrians" checked>
+                <label for="pedestrians">Pedestrians</label>
+                <input class="checkbox" id="motorcycle" type="checkbox" value="Motorcyclists" checked>
+                <label for="motorcycle">Motorcyclists</label>
+                <input class="checkbox" id="bicycle" type="checkbox" value="Bicyclists" checked>
+                <label for="bicycle">Bicyclists</label>
+                <input class="checkbox" id="truck" type="checkbox" value="Truck Occupants" checked>
+                <label for="truck">Truck Occupants</label>
+            </div>
+        </div>
     </div>
 </body>
 <script src="https://d3js.org/d3.v5.min.js"></script>
