@@ -3,8 +3,8 @@
 var dataset;
 var chart_view = "Area";
 
-var types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
-var selected_types = types;
+const types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
+const colors = ['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9'];
 
 var show_total = false;
 
@@ -54,10 +54,6 @@ var show = d3.select("#show").select("#total-checkbox")
         return;
     })
 
-// filter
-var filter = d3.select("#filter.checkbox")
-// on change of any element in name group, call update chart
-
 /*********************************************************/
 /** axes **/
 function initAxes() {
@@ -94,18 +90,10 @@ function updateChart() {
     // clear plot
     d3.select("#plot").remove();
 
-    // get selected types from filter
-    selected_types = [];
-    for (i = 0; i < types.length; i++) {
-        var element = document.getElementById(types[i]);
-        if (element.checked) {
-            selected_types.push(types[i]);
-        }
-    }
     // colors
     var color = d3.scaleOrdinal()
-        .domain(selected_types)
-        .range(['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9']);
+        .domain(types)
+        .range(colors);
 
     // show total line toggle
     if (show_total) {
@@ -129,7 +117,7 @@ function updateChart() {
     console.log(chart_view);
         // groups & reformat data
         var stacked_data = d3.stack()
-            .keys(selected_types)
+            .keys(types)
             (dataset);
 
         console.log(stacked_data);
@@ -156,17 +144,17 @@ function updateChart() {
         var plot = graph.append("g").attr("id", "plot")
 
         // plot each line in filtered types
-        for (i = 0; i < selected_types.length; i++) {
+        for (i = 0; i < types.length; i++) {
             plot.append("path")
                 .datum(dataset)
                 .attr("class", "line")
-                .attr("id", selected_types[i] + "_line")
+                .attr("id", types[i] + "_line")
                 .attr("fill", "none")
-                .attr("stroke", function(d) { return color(d.key); })
+                .attr("stroke", function(d) { return colors[i]; })
                 .attr("stroke-width", 2.0)
                 .attr("d", d3.line()
                     .x(function(d) { return xScale(d.year) })
-                    .y(function(d) { return yScale(d[selected_types[i]]) })
+                    .y(function(d) { return yScale(d[types[i]]) })
                 );
         }
 
