@@ -1,17 +1,17 @@
-
 /** VARIABLES **/
 var dataset;
 var chart_view = "Area";
-var brushableSvg;
+var brushableGraph, brush;
 
 const types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
 const colors = ['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9'];
 
+// toggle whether to show total fatalities
 var show_total = false;
 
-// scales
-var xScale;
-var yScale;
+// scales and axes
+var xScale, xAxis;
+var yScale, yAxis;
 
 // dimensions
 const svg_width = 1000,
@@ -24,17 +24,13 @@ const legendSquare = 20;
 
 /*********************************************************/
 /** SET UP **/
-
-// svg, chart, legend
 var svg = d3.select("#chart").append("svg")
     .attr("width", svg_width)
-    .attr("height", svg_height)
-
+    .attr("height", svg_height);
 var graph = svg.append("g").attr("id", "graph")
     .attr("transform", `translate(${margin.left}, ${margin.top})`);
-var plot = graph.append("g").attr("id", "plot")
-    .attr("height", svg_height);
-var legend = graph.append("g").attr("id", "legend")
+var plot = graph.append("g").attr("id", "plot");
+var legend = svg.append("g").attr("id", "legend")
     .attr("width", legend_width)
     .attr("transform", `translate(${margin.left + legendSquare}, ${svg_height / 2})`);
 
@@ -59,6 +55,9 @@ var area_view = d3.select("#view").select("#area")
 var line_view = d3.select("#view").select("#line")
     .on("click", function() {
         chart_view = "Line";
+        
+        // reset brushing if switched to line
+        xScale.domain(d3.extent(dataset, function(d) { return d.year; }));
         updateChart();
         return;
     });
@@ -67,10 +66,9 @@ var line_view = d3.select("#view").select("#line")
 var show = d3.select("#show").select("#total-checkbox")
     .on("click", function() {
         show_total = document.getElementById("total-checkbox").checked;
-        console.log(show_total);
         updateChart();
         return;
-    })
+    });
 
 /*********************************************************/
 /** AXES **/
@@ -82,22 +80,23 @@ function initAxes() {
         .domain([0,d3.max(dataset, function(d) { return d.total; })])
         .range([graph_height, 0]);
 
-    graph.append("g")
+    xAxis = graph.append("g")
         .attr("id", "x-axis")
-        .attr("transform", "translate(0," + graph_height + ")")
+        .attr("transform", `translate(0, ${graph_height})`)
         .call(d3.axisBottom(xScale));
     graph.append("text")
         .attr("class", "axis-label")
-        .attr("transform", "translate(350," +  (graph_height + 60) +")")
+        .attr("transform", `translate(${graph_width / 2}, ${graph_height + 40})`)
         .text("Year");
 
-    graph.append("g")
+    yAxis = graph.append("g")
         .attr("id", "y-axis")
         .call(d3.axisLeft(yScale));
     graph.append("text")
         .attr("class", "axis-label")
-        .attr("transform", "translate(-80,200) rotate(90)")
-        .text("Total Fatalities");
+        .attr("text-anchor", "middle")
+        .attr("transform", `translate(-60, ${graph_height / 2}) rotate(-90)`)
+        .text("Number of Fatalities");
 }
 
 /*********************************************************/
@@ -105,104 +104,96 @@ function initAxes() {
 function updateChart() {
     // clear plot
     d3.select("#plot").remove();
+    var plot = graph.append("g").attr("id", "plot");
 
     // colors
     var color = d3.scaleOrdinal()
         .domain(types)
         .range(colors);
 
-    // show total line toggle
-    if (show_total) {
-        graph.append("path")
-          .datum(dataset)
-          .attr("class", "line")
-          .attr("fill", "none")
-          .attr("stroke", "gray")
-          .attr("stroke-width", 2.0)
-          .attr("d", d3.line()
-            .x(function(d) { return xScale(d.year) })
-            .y(function(d) { return yScale(d.total) })
-          )
-    } else {
-        d3.select(".line").remove();
-    }
-
-    console.log(chart_view);
-    // show chart view
     /** AREA VIEW **/
-    if (chart_view == "Area") {
-
-        // groups & reformat data
+    if (chart_view === "Area") {
+        // reformat data
         var stacked_data = d3.stack()
             .keys(types)
             (dataset);
-        console.log(stacked_data);
+
+        // ensure brushing is only within this clipPath
+        plot.append("defs").append("svg:clipPath")
+            .attr("id", "clip")
+            .append("svg:rect")
+            .attr("width", graph_width)
+            .attr("height", graph_height)
+            .attr("x", 0)
+            .attr("y", 0);
+        brushableGraph = plot.append('g').attr("clip-path", "url(#clip)");
 
         // add data
-        var plot = graph.append("g").attr("id", "plot")
-        var layers = brushableSvg.selectAll(".layers")
-            .data(stacked_data);
-
-        var layers_enter = layers.enter()
+        brushableGraph.selectAll(".layers")
+            .data(stacked_data)
+            .enter()
             .append("path")
-            .attr("class", "layers");
-
-        layers_enter.merge(layers)
+            .attr("class", function(d) { return "layer " + d.key; })
             .attr("fill", function(d) { return color(d.key); })
             .attr("d", d3.area()
-                .x(function(d) { return xScale(d.data.year)})
-                .y0(function(d) { return yScale(d[0])})
-                .y1(function(d) { return yScale(d[1])})
+                .x(function(d) { return xScale(d.data.year); })
+                .y0(function(d) { return yScale(d[0]); })
+                .y1(function(d) { return yScale(d[1]); })
             );
 
-        layers.exit().remove();
+        // show total line
+        if (show_total) {
+            brushableGraph.append("path")
+                .datum(dataset)
+                .attr("class", "line")
+                .attr("fill", "none")
+                .attr("stroke", "gray")
+                .attr("stroke-width", 2.0)
+                .attr("d", d3.line()
+                    .x(function(d) { return xScale(d.year) })
+                    .y(function(d) { return yScale(d.total) })
+                );
+        } else {
+            brushableGraph.select(".line").remove();
+        }
 
+        // horizontal brushing
+        brush = d3.brushX()
+            .extent( [ [0,0], [graph_width, graph_height] ] )
+            .on("end", updateBrushedChart);
+        brushableGraph.append("g").attr("class", "brush").call(brush);
 
     /** LINE VIEW **/
-    } else if (chart_view == "Line"){
-        var plot = graph.append("g").attr("id", "plot")
-
+    } else if (chart_view === "Line"){
         // plot each line in filtered types
         for (i = 0; i < types.length; i++) {
             plot.append("path")
                 .datum(dataset)
                 .attr("class", "line")
-                .attr("id", types[i] + "_line")
+                .attr("id", types[i] + "-line")
                 .attr("fill", "none")
                 .attr("stroke", function(d) { return colors[i]; })
                 .attr("stroke-width", 2.0)
                 .attr("d", d3.line()
-                    .x(function(d) { return xScale(d.year) })
-                    .y(function(d) { return yScale(d[types[i]]) })
+                    .x(function(d) { return xScale(d.year); })
+                    .y(function(d) { return yScale(d[types[i]]); })
                 );
         }
 
+        // show total line
+        if (show_total) {
+            plot.append("path")
+                .datum(dataset)
+                .attr("class", "line")
+                .attr("fill", "none")
+                .attr("stroke", "gray")
+                .attr("stroke-width", 2.0)
+                .attr("d", d3.line()
+                    .x(function(d) { return xScale(d.year) })
+                    .y(function(d) { return yScale(d.total) })
+                );
+        }
     }
-
-    // brushing selection
-    console.log("-------")
-    console.log(d3.event);
-    var selected = d3.event.selection;
-    if (!selected) {
-        // invalid/no selection; waits a bit then scale to original
-        // (double-clicking will return graph to original scale)
-        if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
-        xScale.domain(d3.extent(data, function(d) { return d.year; }))
-    } else {
-        // zoom into the selected area
-        xScale.domain([ xScale.invert(selected[0]), xScale.invert(selected[1]) ]);
-
-        // remove brushing rectangle
-        brushableSvg.select(".brush").call(brush.move, null);
-    }
-    xAxis.transition().duration(1000).call(d3.axisBottom(xScale));
-    brushableSvg.selectAll("path")
-        .transition().duration(1000)
-        .attr("d", d3.area()
-            .x(function(d) { return xScale(d.data.year); })
-            .y0(function(d) { return yScale(d[0]); })
-            .y1(function(d) { return yScale(d[1]); })
-        );
 }
 
 /*********************************************************/
@@ -226,8 +217,6 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
     };
 }).then(function (data) {
     dataset = data;
-    console.log(data);
-
     initAxes();
 
     // legend
@@ -239,7 +228,7 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .attr("y", function(_, i) { return i * (legendSquare + 5); })
         .attr("width", legendSquare)
         .attr("height", legendSquare)
-        .style("fill", function(d, i) { return colors[i]; })
+        .style("fill", function(_, i) { return colors[i]; })
         .on("mouseover", legendMouseover)
         .on("mouseleave", legendMouseleave);
     legend.selectAll(".legend-label")
@@ -247,56 +236,47 @@ d3.dsv(",", "transportation_fatalities.csv", function (d) {
         .enter()
         .append("text").attr("class", "legend-label")
         .attr("x", graph_width + legendSquare + 10)
-        .attr("y", function(_, i) { return 10 + i * (legendSquare + 7); })
-        .style("fill", function(d, i) { return colors[i]; })
+        .attr("y", function(_, i) { return 15 + i * (legendSquare + 5); })
+        .style("fill", function(_, i) { return colors[i]; })
         .text(function(d) { return d; })
         .attr("text-anchor", "start")
         .on("mouseover", legendMouseover)
         .on("mouseleave", legendMouseleave);
 
-    // ensure brushing is only within this clipPath
-    plot.append("defs").append("svg:clipPath")
-        .attr("id", "clip")
-        .append("svg:rect")
-        .attr("width", graph_width)
-        .attr("height", graph_height)
-        .attr("x", 0)
-        .attr("y", 0);
-    brushableSvg = graph.append('g').attr("clip-path", "url(#clip)");
-
-    // horizontal brushing
-    var brush = d3.brushX()
-        .extent( [ [0,0], [graph_width, graph_height] ] )
-        .on("end", updateChart);
-    brushableSvg.append("g").attr("class", "brush").call(brush);
-
     updateChart();
-
-
-//    function updateChart() {
-//        var selected = d3.event.selection;
-//        if (!selected) {
-//            // invalid/no selection; waits a bit then scale to original
-//            // (double-clicking will return graph to original scale)
-//            if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
-//            xScale.domain(d3.extent(data, function(d) { return d.year; }))
-//        } else {
-//            // zoom into the selected area
-//            xScale.domain([ xScale.invert(selected[0]), xScale.invert(selected[1]) ]);
-//
-//            // remove brushing rectangle
-//            brushableSvg.select(".brush").call(brush.move, null);
-//        }
-//        xAxis.transition().duration(1000).call(d3.axisBottom(xScale));
-//        brushableSvg.selectAll("path")
-//            .transition().duration(1000)
-//            .attr("d", d3.area()
-//                .x(function(d) { return xScale(d.data.year); })
-//                .y0(function(d) { return yScale(d[0]); })
-//                .y1(function(d) { return yScale(d[1]); })
-//            );
-//    }
 })
+
+function updateBrushedChart() {
+    var selected = d3.event.selection;
+    if (!selected) {
+        // invalid/no selection; waits a bit then scale to original
+        // (double-clicking will return graph to original scale)
+        if (!idleTimeout) return idleTimeout = setTimeout(idled, 350);
+        xScale.domain(d3.extent(dataset, function(d) { return d.year; }));
+    } else {
+        // zoom into the selected area
+        xScale.domain([ xScale.invert(selected[0]), xScale.invert(selected[1]) ]);
+
+        // remove brushing rectangle
+        brushableGraph.select(".brush").call(brush.move, null);
+    }
+    xAxis.transition().duration(1000).call(d3.axisBottom(xScale));
+    brushableGraph.selectAll(".layer")
+        .transition().duration(1000)
+        .attr("d", d3.area()
+            .x(function(d) { return xScale(d.data.year); })
+            .y0(function(d) { return yScale(d[0]); })
+            .y1(function(d) { return yScale(d[1]); })
+        );
+    if (show_total) {
+        brushableGraph.select(".line")
+            .transition().duration(1000)
+            .attr("d", d3.line()
+                    .x(function(d) { return xScale(d.year); })
+                    .y(function(d) { return yScale(d.total); })
+                );
+    }
+}
 
 // makes the non-hovered groups less opaque
 function legendMouseover(d) {

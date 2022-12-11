@@ -7,21 +7,20 @@
 </head>
 <body>
     <div id="main">
-        <div class="column left" id="chart"></div>
-        <div class="column right" id="adjustments">
+        <div id="options">
             <div id="view">
-                <h3>View</h3>
+                <label for="chart-view" class="chart-view-label">Chart View:</label>
                 <input class="radio-buttons" id="area" type="radio" name="view" value="Area" checked>
                 <label for="area">Area</label>
                 <input class="radio-buttons" id="line" type="radio" name="view" value="Line">
                 <label for="line">Line</label>
             </div>
             <div id="show">
-                <h3>Show</h3>
                 <input class="checkbox" id="total-checkbox" type="checkbox" value="Total Line">
-                <label for="total-checkbox">Show Total Line</label>
+                <label for="total-checkbox">Show Total Fatalities</label>
             </div>
         </div>
+        <div id="chart"></div>
     </div>
 </body>
 <script src="https://d3js.org/d3.v5.min.js"></script>
