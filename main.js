@@ -1,7 +1,7 @@
 
 /** variables **/
 var dataset;
-var area_selected = true;
+var chart_view = "Area";
 
 var types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
 var selected_types = types;
@@ -34,12 +34,14 @@ var plot = graph.append("g").attr("id", "plot")
 // views
 var area_view = d3.select("#view").select("#area")
     .on("click", function() {
-        updateChart("Area");
+        chart_view = "Area";
+        updateChart();
         return;
     });
 var line_view = d3.select("#view").select("#line")
     .on("click", function() {
-        updateChart("Line");
+        chart_view = "Line";
+        updateChart();
         return;
     });
 
@@ -88,7 +90,7 @@ function initAxes() {
 
 /*********************************************************/
 /** update chart **/
-function updateChart(chart_view) {
+function updateChart() {
     // clear plot
     d3.select("#plot").remove();
 
@@ -97,7 +99,7 @@ function updateChart(chart_view) {
     for (i = 0; i < types.length; i++) {
         var element = document.getElementById(types[i]);
         if (element.checked) {
-            selected_types.append(types[i]);
+            selected_types.push(types[i]);
         }
     }
     // colors
@@ -107,7 +109,7 @@ function updateChart(chart_view) {
 
     // show total line toggle
     if (show_total) {
-        svg.append("path")
+        graph.append("path")
           .datum(dataset)
           .attr("class", "line")
           .attr("fill", "none")
@@ -121,8 +123,10 @@ function updateChart(chart_view) {
         d3.select(".line").remove();
     }
 
+    console.log(chart_view);
     // show chart view
     if (chart_view == "Area") {
+    console.log(chart_view);
         // groups & reformat data
         var stacked_data = d3.stack()
             .keys(selected_types)
@@ -153,7 +157,7 @@ function updateChart(chart_view) {
 
         // plot each line in filtered types
         for (i = 0; i < selected_types.length; i++) {
-            svg.append("path")
+            plot.append("path")
                 .datum(dataset)
                 .attr("class", "line")
                 .attr("id", selected_types[i] + "_line")
