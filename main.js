@@ -2,6 +2,7 @@
 var dataset;
 var chart_view = "Area";
 var brushableGraph, brush;
+var tooltip, hoveredData;
 
 const types = ["car_occupants", "pedestrians", "motorcyclists", "bicyclists", "truck_occupants"];
 const colors = ['#9abbe6','#c2554f','#a0deb7','#eba57a','#ae85c9'];
@@ -164,22 +165,7 @@ function updateChart() {
         brushableGraph.append("g").attr("class", "brush").call(brush);
 
     /** LINE VIEW **/
-    } else if (chart_view === "Line"){
-        // plot each line in filtered types
-        for (i = 0; i < types.length; i++) {
-            plot.append("path")
-                .datum(dataset)
-                .attr("class", "line")
-                .attr("id", types[i] + "-line")
-                .attr("fill", "none")
-                .attr("stroke", function(d) { return colors[i]; })
-                .attr("stroke-width", 2.0)
-                .attr("d", d3.line()
-                    .x(function(d) { return xScale(d.year); })
-                    .y(function(d) { return yScale(d[types[i]]); })
-                );
-        }
-
+    } else if (chart_view === "Line") {
         // show total line
         if (show_total) {
             plot.append("path")
@@ -193,6 +179,80 @@ function updateChart() {
                     .y(function(d) { return yScale(d.total) })
                 );
         }
+
+        // plot each line in filtered types
+        for (i = 0; i < types.length; i++) {
+            plot.append("path")
+                .datum(dataset)
+                .attr("class", "line")
+                .attr("id", types[i] + "-line")
+                .attr("fill", "none")
+                .attr("stroke", function(d) { return colors[i]; })
+                .attr("stroke-width", 2)
+                .attr("d", d3.line()
+                    .x(function(d) { return xScale(d.year); })
+                    .y(function(d) { return yScale(d[types[i]]); })
+                );
+        }
+
+        // tooltip + vertical line
+        d3.selectAll("#tooltip").remove();
+        tooltip = d3.select("#chart").append("div")
+            .attr("id", "tooltip")
+            .style("display", "none");
+        var hoverableGraph = plot.append("g").attr("id", "hoverable");
+
+        // vertical line that follows cursor
+        hoverableGraph.append("rect")
+            .attr("class", "hover-line")
+            .attr("width", 1)
+            .attr("height", graph_height)
+            .style("opacity", "0");
+        hoverableGraph.selectAll('.hover-circle')
+            .data(dataset)
+            .enter().append("g").attr("class", "hover-line-each")
+            .append("circle")
+            .attr("r", 4)
+            .style("stroke", function (_, i) { return colors[i]; })
+            .style("opacity", "0");
+
+        // to catch mouse effects
+        hoverableGraph.append('svg:rect')
+            .attr('width', graph_width) 
+            .attr('height', graph_height)
+            .attr('fill', 'none')
+            .attr('pointer-events', 'all')
+            .on('mouseout', function () {
+                // hide line, circles, and tooltip
+                d3.select(".hover-line").style("opacity", 0);
+                d3.selectAll(".hover-line-each circle").style("opacity", 0);
+                d3.selectAll("#tooltip").style("display", "none");
+            })
+            .on('mouseover', function () {
+                // show line, circles, and tooltip
+                d3.select(".hover-line").style("opacity", 1);
+                d3.selectAll(".hover-line-each circle").style("opacity", 1);
+                d3.selectAll("#tooltip").style("display", "inline");
+              })
+            .on('mousemove', function () {
+                var mousePos = d3.mouse(this);
+                d3.selectAll(".hover-line-each")
+                    .attr("transform", function (_, i) {
+                        // get year corresponding to mouse x-position
+                        var xHovered = xScale.invert(mousePos[0]);
+                        
+                        // retrieve row index of that year in the dataset
+                        var bisect = d3.bisector(function (d) { return d.year; }).left;
+                        var idx = bisect(dataset, xHovered);
+                        hoveredData = dataset[idx];
+
+                        // move hover line, circles, and tooltip accordingly
+                        d3.select(".hover-line").attr("x", xScale(dataset[idx].year));
+                        if (yScale(hoveredData[types[i]]))
+                            return `translate(${xScale(hoveredData.year)}, ${yScale(hoveredData[types[i]])})`;
+                    });
+                updateTooltips();
+            });
     }
 }
 
@@ -287,4 +347,21 @@ function legendMouseover(d) {
 // restore opacity of all groups
 function legendMouseleave(d) {
     d3.selectAll(".layer").style("opacity", 1);
+}
+
+function updateTooltips() {
+    var year = `Year: ${hoveredData.year.getFullYear()}<br/>`;
+    var population = `Population: ${hoveredData.population}<br/>`;
+    var total = `Total Fatalities: ${hoveredData.total}<br/>`;
+    tooltip.html(year + population + total)
+        .style("left", `${d3.event.pageX + 20}px`)
+        .style("top", `${d3.event.pageY + 20}px`)
+        .style("color", "white")
+        .selectAll()
+
+        // list out no. of fatalities for each transportation type that year
+        .data(types).enter()
+        .append("div")
+        .style("color", (_, i) => { return colors[i]; })
+        .html(d => { return `${d}: ${hoveredData[d]}`; })
 }
